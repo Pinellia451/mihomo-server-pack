@@ -1,0 +1,252 @@
+# 学术服务器简化配置
+# 原则：除了镜像站，其他都走代理
+
+## 基本复用片段 ##########################################################
+providers_common: &providers_common
+  type: http
+  interval: 3600
+  health-check:
+    enable: true
+    interval: 600
+    url: https://www.gstatic.com/generate_204
+
+## 订阅链接聚合点 ########################################################
+#region 订阅链接聚合
+# 新增链接的时候只需要更改这里
+# 将下方 url 替换为你的机场订阅链接
+proxy-providers:
+  my-provider:
+    <<: *providers_common
+    url: "https://example.com/your-subscription-link?clash=1"
+    path: ./proxies/my-provider.yaml
+
+normal_node_filter: &normal_node_filter
+  filter: "^(?!.*(?:[3-9]x|[0-9]{2}x))(?!.*(灾|网易|Netease|http)).*$"
+common_use: &common_use
+  !!merge <<: *normal_node_filter
+  include-all: true
+
+## 基本配置 #############################################################
+mixed-port: 7899
+mode: rule
+ipv6: true
+disable-keep-alive: false
+allow-lan: false
+find-process-mode: always
+unified-delay: true
+tcp-concurrent: true
+log-level: error
+global-client-fingerprint: random
+
+geodata-mode: true
+geo-auto-update: true
+geodata-loader: standard
+geo-update-interval: 24
+geox-url:
+  geoip: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat"
+  geosite: "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat"
+
+external-controller: 127.0.0.1:9011
+external-ui: WebUI/MetacubeXD
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+secret: "passwd1001"
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+
+## DNS 配置 ##############################################################
+cn_dns: &cn_dns
+  - https://dns.alidns.com/dns-query
+  - https://223.5.5.5/dns-query
+  - https://doh.pub/dns-query
+  - https://1.12.12.12/dns-query
+
+dns:
+  enable: true
+  ipv6: false
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter-mode: blacklist
+  fake-ip-filter:
+    - "*.lan"
+    - "+.local"
+    - "time.*.com"
+    - "ntp.*.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "+.market.xiaomi.com"
+    - "connect.rom.miui.com"
+    - "localhost.ptlogin2.qq.com"
+  nameserver-policy:
+    "+.arpa": "10.0.0.1"
+    "geosite:private": *cn_dns
+    "geoip:private": *cn_dns
+  proxy-server-nameserver: *cn_dns
+  direct-nameserver: *cn_dns
+  nameserver:
+    - https://cloudflare-dns.com/dns-query
+    - https://1.1.1.1/dns-query
+    - https://dns.google/dns-query
+    - https://8.8.8.8/dns-query
+
+## 代理组 ################################################################
+proxy-groups:
+  # 主代理组 - 手动选择
+  - name: PROXY
+    type: select
+    proxies: [DIRECT, 美国节点, 新加坡节点, 日本节点, 香港节点, 台湾节点]
+    lazy: true
+    include-all: true
+
+  # 地区自动测速组
+  - name: 美国节点
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 3000
+    lazy: true
+    include-all: true
+    filter: "^(?!.*(?:[3-9]x|[0-9]{2}x))(?=.*(美|US|United States|洛杉矶|硅谷|西雅图|纽约|芝加哥|达拉斯|波特兰|俄勒冈|凤凰城|费利蒙|拉斯维加斯|圣何塞|圣克拉拉))(?!.*(灾|网易|Netease|http)).*$"
+    hidden: true
+
+  - name: 新加坡节点
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 3000
+    lazy: true
+    include-all: true
+    filter: "^(?!.*(?:[3-9]x|[0-9]{2}x))(?=.*(新加坡|SG|Singapore|狮城|坡))(?!.*(灾|网易|Netease|http)).*$"
+    hidden: true
+
+  - name: 日本节点
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 3000
+    lazy: true
+    include-all: true
+    filter: "^(?!.*(?:[3-9]x|[0-9]{2}x))(?=.*(日本|JP|Japan|东京|大阪|川日|泉日|埼玉|沪日|深日))(?!.*(灾|网易|Netease|http)).*$"
+    hidden: true
+
+  - name: 香港节点
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 3000
+    lazy: true
+    include-all: true
+    filter: "^(?!.*(?:[3-9]x|[0-9]{2}x))(?=.*(香港|HK|HongKong|Hong Kong))(?!.*(灾|网易|Netease|http)).*$"
+    hidden: true
+
+  - name: 台湾节点
+    type: url-test
+    url: https://www.gstatic.com/generate_204
+    interval: 300
+    timeout: 3000
+    lazy: true
+    include-all: true
+    filter: "^(?!.*(?:[3-9]x|[0-9]{2}x))(?=.*(台湾|TW|Taiwan|新北|彰化))(?!.*(灾|网易|Netease|http)).*$"
+    hidden: true
+
+
+## 规则集 ################################################################
+rule-anchor:
+  domain_y: &domain_y {type: http, interval: 86400, behavior: domain, format: yaml}
+  domain_t: &domain_t {type: http, interval: 86400, behavior: domain, format: text}
+  classical_t: &classical_t {type: http, interval: 86400, behavior: classical, format: text}
+  ip_t: &ip_t {type: http, interval: 86400, behavior: ipcidr, format: text}
+
+rule-providers:
+  # 广告规则
+  秋风广告规则:
+    type: http
+    behavior: domain
+    format: yaml
+    path: ./rule_providers/AWAvenue-Ads-Rule-Clash.yaml
+    url: "https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main//Filters/AWAvenue-Ads-Rule-Clash.yaml"
+    interval: 86400
+
+  # 镜像站直连规则
+  mirror_direct:
+    <<: *domain_t
+    url: "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaCompanyIp.list"
+    path: ./rules/mirror_direct.txt
+
+rules:
+
+  # ===== 镜像站直连 =====
+  # 包管理器镜像
+  - DOMAIN-SUFFIX,mirrors.tuna.tsinghua.edu.cn,DIRECT      # 清华镜像
+  - DOMAIN-SUFFIX,mirrors.ustc.edu.cn,DIRECT                # 中科大镜像
+  - DOMAIN-SUFFIX,mirrors.aliyun.com,DIRECT                 # 阿里云镜像
+  - DOMAIN-SUFFIX,mirrors.cloud.tencent.com,DIRECT          # 腾讯云镜像
+  - DOMAIN-SUFFIX,mirrors.huaweicloud.com,DIRECT            # 华为云镜像
+  - DOMAIN-SUFFIX,mirrors.163.com,DIRECT                    # 网易镜像
+  - DOMAIN-SUFFIX,mirrors.sohu.com,DIRECT                   # 搜狐镜像
+  - DOMAIN-SUFFIX,mirrors.bfsu.edu.cn,DIRECT                # 北外镜像
+  - DOMAIN-SUFFIX,mirrors.hit.edu.cn,DIRECT                 # 哈工大镜像
+  - DOMAIN-SUFFIX,mirrors.jlu.edu.cn,DIRECT                 # 吉大镜像
+  - DOMAIN-SUFFIX,mirrors.nju.edu.cn,DIRECT                 # 南大镜像
+  - DOMAIN-SUFFIX,mirrors.zju.edu.cn,DIRECT                 # 浙大镜像
+  - DOMAIN-SUFFIX,mirrors.pku.edu.cn,DIRECT                 # 北大镜像
+  - DOMAIN-SUFFIX,mirrors.sjtug.sjtu.edu.cn,DIRECT          # 上交镜像
+  - DOMAIN-SUFFIX,mirror.sjtu.edu.cn,DIRECT                 # 上交镜像2
+  - DOMAIN-SUFFIX,mirrors.tuna.tsinghua.edu.cn,DIRECT       # 清华v6镜像
+  - DOMAIN-SUFFIX,opentuna.cn,DIRECT                        # OpenTuna
+  - DOMAIN-SUFFIX,mirror.cernet.edu.cn,DIRECT               # 教育网镜像
+
+  # PyPI 镜像
+  - DOMAIN-SUFFIX,pypi.tuna.tsinghua.edu.cn,DIRECT
+  - DOMAIN-SUFFIX,pypi.mirrors.ustc.edu.cn,DIRECT
+  - DOMAIN-SUFFIX,mirrors.aliyun.com,DIRECT
+
+  # npm 镜像
+  - DOMAIN-SUFFIX,registry.npmmirror.com,DIRECT
+  - DOMAIN-SUFFIX,npm.taobao.org,DIRECT
+
+  # Docker Hub 镜像
+  - DOMAIN-SUFFIX,registry.docker-cn.com,DIRECT
+  - DOMAIN-SUFFIX,mirror.ccs.tencentyun.com,DIRECT
+  - DOMAIN-SUFFIX,docker.mirrors.ustc.edu.cn,DIRECT
+
+  # Maven 镜像
+  - DOMAIN-SUFFIX,maven.aliyun.com,DIRECT
+
+  # GitHub 加速/镜像（学术常用）
+  - DOMAIN-SUFFIX,ghproxy.com,DIRECT
+  - DOMAIN-SUFFIX,ghproxy.net,DIRECT
+  - DOMAIN-SUFFIX,gh-proxy.com,DIRECT
+  - DOMAIN-SUFFIX,mirror.ghproxy.com,DIRECT
+  - DOMAIN-SUFFIX,ghps.cc,DIRECT
+  - DOMAIN-SUFFIX,gh.ddlc.top,DIRECT
+  - DOMAIN-SUFFIX,gh-proxy.net,DIRECT
+  - DOMAIN-SUFFIX,raw.gitmirror.com,DIRECT
+  - DOMAIN-SUFFIX,cdn.gitmirror.com,DIRECT
+  - DOMAIN-SUFFIX,ghproxy.cc,DIRECT
+  - DOMAIN-SUFFIX,ghfast.top,DIRECT
+
+  # 其他常用直连
+  - GEOSITE,private,DIRECT
+  - GEOIP,private,DIRECT
+  - GEOSITE,cn,DIRECT
+  - GEOIP,cn,DIRECT
+
+  # ===== 其他全部走代理 =====
+  - MATCH,PROXY

@@ -1,0 +1,22 @@
+# mihomo binary (download yourself)
+mihomo-core
+WebUI/MetacubeXD
+
+# personal config with subscription links
+config.yaml
+
+# runtime
+mihomo.log
+mihomo.pid
+cache.db
+
+# auto-downloaded
+rules/
+proxies/
+rule_providers/
+geoip.dat
+geosite.dat
+
+# dev tooling
+CLAUDE.md
+*/.DS_Store
