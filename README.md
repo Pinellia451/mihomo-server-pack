@@ -125,6 +125,17 @@ unvpn           # 取消代理
 mstop           # 停止 mihomo
 ```
 
+## vscode 配置
+设置项json：
+```json
+{
+    "http.noProxy": [
+        "http://127.0.0.1:7899"
+    ],
+    "http.proxy": "http://127.0.0.1:7899"
+}
+```
+这样扩展也可以走代理，包括 codex 插件。
 ## 项目结构
 
 ```

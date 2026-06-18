@@ -110,7 +110,7 @@ proxy-groups:
   # 主代理组 - 手动选择
   - name: PROXY
     type: select
-    proxies: [DIRECT, 美国节点, 新加坡节点, 日本节点, 香港节点, 台湾节点]
+    proxies: [美国节点, DIRECT, 新加坡节点, 日本节点, 香港节点, 台湾节点]
     lazy: true
     include-all: true
 
