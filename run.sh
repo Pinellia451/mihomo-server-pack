@@ -11,12 +11,8 @@ LOG_FILE="$SCRIPT_DIR/mihomo.log"
 
 # ---------- 检查 mihomo-core 是否存在 ----------
 if [ ! -f "$MIHOMO" ]; then
-    echo "[!] mihomo-core not found. Download it first:"
-    echo ""
-    echo "    curl -L 'https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-amd64-v1-go120.gz' -o '$SCRIPT_DIR/mihomo-core.gz'"
-    echo "    gunzip '$SCRIPT_DIR/mihomo-core.gz'"
-    echo "    chmod +x '$SCRIPT_DIR/mihomo-core'"
-    echo ""
+    echo "[!] mihomo-core not found at $MIHOMO"
+    echo "    Please re-clone or restore the binary."
     exit 1
 fi
 
@@ -44,8 +40,10 @@ start_mihomo() {
     pid=$(cat "$PID_FILE")
     sleep 1
     if kill -0 "$pid" 2>/dev/null; then
+        local port
+        port=$(get_proxy_port)
         echo "[+] mihomo started (pid=$pid)"
-        echo "[+] mixed-port: 7899"
+        echo "[+] mixed-port: $port"
         echo "[+] external-controller: 0.0.0.0:9011"
         echo "[+] WebUI: http://127.0.0.1:9011/ui"
     else
@@ -54,19 +52,28 @@ start_mihomo() {
     fi
 }
 
-# # ---------- 设置环境变量（这里逻辑好像有问题，弃用） ----------
-# set_proxy() {
-#     export http_proxy="http://127.0.0.1:7899"
-#     export https_proxy="http://127.0.0.1:7899"
-#     export all_proxy="socks5://127.0.0.1:7899"
-#     export no_proxy="localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12"
-#     echo "[+] Proxy env vars set (http/https -> 127.0.0.1:7899)"
-# }
+# ---------- 设置环境变量 ----------
+get_proxy_port() {
+    # 从 config.yaml 读取 mixed-port，如果读取失败则使用默认值 7899
+    local port
+    port=$(grep -E "^mixed-port:" "$CONFIG" 2>/dev/null | awk '{print $2}')
+    echo "${port:-7899}"
+}
 
-# unset_proxy() {
-#     unset http_proxy https_proxy all_proxy no_proxy
-#     echo "[+] Proxy env vars unset"
-# }
+set_proxy() {
+    local port
+    port=$(get_proxy_port)
+    export http_proxy="http://127.0.0.1:$port"
+    export https_proxy="http://127.0.0.1:$port"
+    export all_proxy="socks5://127.0.0.1:$port"
+    export no_proxy="localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12"
+    echo "[+] Proxy env vars set (http/https -> 127.0.0.1:$port)"
+}
+
+unset_proxy() {
+    unset http_proxy https_proxy all_proxy no_proxy
+    echo "[+] Proxy env vars unset"
+}
 
 # ---------- 主逻辑 ----------
 case "${1:-start}" in

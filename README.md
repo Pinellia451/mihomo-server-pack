@@ -2,26 +2,32 @@
 
 开箱即用的 [mihomo](https://github.com/MetaCubeX/mihomo)（Clash Meta）代理配置，适用于 Linux。
 
-## 快速开始
+## 一键安装
+
+```bash
+# 使用默认端口 7899
+curl -sL https://raw.githubusercontent.com/Pinellia451/mihomo-server-pack/master/install.sh | bash
+
+# 指定自定义端口
+curl -sL https://raw.githubusercontent.com/Pinellia451/mihomo-server-pack/master/install.sh | bash -s -- --port 8080
+```
+
+安装脚本会自动：
+1. 克隆仓库到 `~/app/Proxy`
+2. 创建配置文件
+3. 设置执行权限
+4. 添加 Shell 别名
+
+## 快速开始（手动安装）
 
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/<your-username>/Proxy.git
-cd Proxy
+git clone https://github.com/Pinellia451/mihomo-server-pack.git ~/app/Proxy
+cd ~/app/Proxy
 ```
 
-### 2. 下载 mihomo-core
-
-```bash
-curl -L 'https://github.com/MetaCubeX/mihomo/releases/latest/download/mihomo-linux-amd64-v1-go120.gz' -o mihomo-core.gz
-gunzip mihomo-core.gz
-chmod +x mihomo-core
-```
-
-前往 [MetaCubeX/mihomo releases](https://github.com/MetaCubeX/mihomo/releases) 查看最新版本。
-
-### 3. 配置订阅
+### 2. 配置订阅
 
 ```bash
 cp config.example.yaml config.yaml
@@ -37,13 +43,62 @@ proxy-providers:
     path: ./proxies/my-provider.yaml
 ```
 
-### 4. 启动
+**配置说明：**
+
+1. **获取订阅链接**：从你的机场/代理服务提供商获取 Clash 订阅链接（通常以 `?clash=1` 结尾）
+2. **替换 url**：将 `url` 字段替换为你的实际订阅链接
+3. **多个订阅**：可以添加多个 provider，每个使用不同的名称
+
+**示例（多个订阅）：**
+
+```yaml
+proxy-providers:
+  provider-1:
+    <<: *providers_common
+    url: "https://example1.com/sub?clash=1"
+    path: ./proxies/provider-1.yaml
+  
+  provider-2:
+    <<: *providers_common
+    url: "https://example2.com/sub?clash=1"
+    path: ./proxies/provider-2.yaml
+```
+
+**注意事项：**
+- 订阅链接必须支持 Clash 格式
+- 路径 `path` 用于缓存订阅文件，保持默认即可
+- 配置完成后运行 `mstart` 启动代理
+
+### 3. 启动
 
 ```bash
 ./run.sh start
 ```
 
 ## 使用方法
+
+### Shell 别名
+
+安装后自动添加以下别名（需执行 `source ~/.zshrc` 或 `source ~/.bashrc`）：
+
+| 别名 | 功能 |
+|------|------|
+| `mstart` | 启动代理 |
+| `mstop` | 停止代理 |
+| `mrestart` | 重启代理 |
+| `mstatus` | 查看状态 |
+| `mproxy` | 设置代理环境变量 |
+| `munproxy` | 取消代理环境变量 |
+
+**使用示例：**
+
+```bash
+mstart          # 启动 mihomo
+mproxy          # 设置终端代理
+# ... 正常上网 ...
+munproxy        # 取消代理
+mstop           # 停止 mihomo
+```
 
 ### run.sh 命令
 
@@ -52,27 +107,8 @@ proxy-providers:
 ./run.sh stop       # 停止 mihomo
 ./run.sh restart    # 重启
 ./run.sh status     # 查看运行状态
-```
-
-### 设置终端代理
-
-在当前 shell 中启用代理：
-
-```bash
-# 方法一：使用 vpn 函数（见下方 Shell 配置）
-vpn 7899
-
-# 方法二：手动设置
-export http_proxy="http://localhost:7899"
-export https_proxy="http://localhost:7899"
-```
-
-取消代理：
-
-```bash
-unvpn
-# 或
-unset http_proxy https_proxy
+./run.sh proxy      # 设置代理环境变量
+./run.sh unproxy    # 取消代理环境变量
 ```
 
 ### WebUI
@@ -83,50 +119,40 @@ unset http_proxy https_proxy
 http://127.0.0.1:9011/ui
 ```
 
-密钥见 `config.yaml` 中的 `secret` 字段。
+默认密钥：`passwd`
 
-## Shell 配置
+> 密钥可在 `config.yaml` 的 `secret` 字段中修改。
 
-将以下内容添加到 `~/.zshrc`（或 `~/.bashrc`），可以获得快捷命令和灵活的代理切换功能：
+## 代理端口配置
 
-```bash
-# ---- mihomo 快捷命令 ----
-PROXY_DIR="/path/to/your/Proxy"  # 改为你的实际路径
-alias mstart="$PROXY_DIR/run.sh start"
-alias mstop="$PROXY_DIR/run.sh stop"
-alias mrestart="$PROXY_DIR/run.sh restart"
-alias mstatus="$PROXY_DIR/run.sh status"
+默认端口为 `7899`，可通过以下方式修改：
 
-# ---- 通用代理切换 ----
-# vpn [端口号] —— 设置终端代理，默认端口 9999
-vpn() {
-  local port=${1:-9999}
-  export http_proxy="http://localhost:${port}"
-  export https_proxy="http://localhost:${port}"
-  echo "Proxy has been set to localhost:${port}"
-}
-
-# unvpn —— 取消终端代理
-unvpn() {
-  unset http_proxy https_proxy
-  echo "Proxy has been disabled"
-}
-```
-
-添加后执行 `source ~/.zshrc` 使其生效。
-
-**使用示例：**
+### 方式一：安装时指定
 
 ```bash
-mstart          # 启动 mihomo
-vpn 7899        # 设置终端代理指向 mihomo 的 mixed-port
-# ... 正常上网 ...
-unvpn           # 取消代理
-mstop           # 停止 mihomo
+curl -sL https://raw.githubusercontent.com/Pinellia451/mihomo-server-pack/master/install.sh | bash -s -- --port 8080
 ```
+
+### 方式二：修改配置文件
+
+编辑 `config.yaml`：
+
+```yaml
+mixed-port: 8080
+```
+
+然后重启代理：
+
+```bash
+mrestart
+```
+
+`mproxy` 会自动读取配置文件中的端口，无需手动修改。
 
 ## vscode 配置
-设置项json：
+
+设置项 json：
+
 ```json
 {
     "http.noProxy": [
@@ -135,13 +161,17 @@ mstop           # 停止 mihomo
     "http.proxy": "http://127.0.0.1:7899"
 }
 ```
+
 这样扩展也可以走代理，包括 codex 插件。
+
 ## 项目结构
 
 ```
 .
+├── install.sh            # 一键安装脚本
 ├── config.example.yaml   # 配置模板（复制为 config.yaml 后使用）
 ├── run.sh                # 启动脚本
+├── mihomo-core           # mihomo 二进制文件
 ├── rules/                # 自定义规则文件（自动从远程更新）
 ├── rule_providers/       # 规则集（自动下载）
 ├── proxies/              # 代理节点缓存（自动下载）
@@ -150,7 +180,7 @@ mstop           # 停止 mihomo
 └── geosite.dat           # GeoSite 数据库（自动更新）
 ```
 
-> 运行时还会生成 `mihomo-core`（二进制）、`config.yaml`（个人配置）、`mihomo.log`、`mihomo.pid`、`cache.db` 等文件，已在 `.gitignore` 中排除。
+> 运行时还会生成 `config.yaml`（个人配置）、`mihomo.log`、`mihomo.pid`、`cache.db` 等文件，已在 `.gitignore` 中排除。
 
 ## 配置要点
 

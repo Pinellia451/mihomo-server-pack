@@ -49,7 +49,7 @@ geox-url:
 external-controller: 127.0.0.1:9011
 external-ui: WebUI/MetacubeXD
 external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
-secret: "passwd1001"
+secret: "passwd"
 
 profile:
   store-selected: true
