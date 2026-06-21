@@ -86,7 +86,7 @@ proxy-providers:
 | `mstart` | 启动代理 |
 | `mstop` | 停止代理 |
 | `mrestart` | 重启代理 |
-| `mstatus` | 查看状态 |
+| `mstatus` | 查看状态 + 出口 IP 信息 |
 | `mproxy` | 设置代理环境变量 |
 | `munproxy` | 取消代理环境变量 |
 
@@ -106,9 +106,13 @@ mstop           # 停止 mihomo
 ./run.sh start      # 启动 mihomo（后台运行）
 ./run.sh stop       # 停止 mihomo
 ./run.sh restart    # 重启
-./run.sh status     # 查看运行状态
+./run.sh status     # 查看运行状态 + 出口 IP 信息
 ./run.sh proxy      # 设置代理环境变量
 ./run.sh unproxy    # 取消代理环境变量
+
+# 指定端口启动（不修改 config.yaml）
+./run.sh --port 1080 start
+./run.sh --port 1080 restart
 ```
 
 ### WebUI
@@ -125,33 +129,18 @@ http://127.0.0.1:9011/ui
 
 ## 代理端口配置
 
-默认端口为 `7899`，可通过以下方式修改：
-
-### 方式一：安装时指定
+默认端口为 `7899`（config.yaml 中的 `mixed-port`），可通过 `--port` 运行时指定：
 
 ```bash
-curl -sL https://raw.githubusercontent.com/Pinellia451/mihomo-server-pack/master/install.sh | bash -s -- --port 8080
+./run.sh --port 1080 start     # 用 1080 端口启动
+./run.sh --port 1080 restart   # 用 1080 端口重启
 ```
 
-### 方式二：修改配置文件
-
-编辑 `config.yaml`：
-
-```yaml
-mixed-port: 8080
-```
-
-然后重启代理：
-
-```bash
-mrestart
-```
-
-`mproxy` 会自动读取配置文件中的端口，无需手动修改。
+`--port` 不会修改 config.yaml，而是生成临时配置文件。`mproxy` 也会自动使用指定的端口。
 
 ## vscode 配置
 
-设置项 json：
+设置项 json（将端口改为你的实际端口）：
 
 ```json
 {
@@ -186,7 +175,8 @@ mrestart
 
 - **代理模式**：系统代理（mixed-port 7899），未启用 TUN
 - **DNS**：fake-ip 模式，国内走 AliDNS / Tencent，国外走 Cloudflare / Google
-- **节点分组**：按地区自动分类（美国、香港、日本、新加坡、台湾），支持负载均衡
+- **节点分组**：全部使用 fallback 策略，按地区优先级切换（挂了才切下一个，不因延迟波动跳变）
+- **ChatGPT 专用组**：优先美国节点，匹配 OpenAI 相关域名
 - **规则**：自定义规则 + GeoIP/GEOSITE + 广告拦截，最后 `MATCH` 兜底走代理
 
 ## 许可

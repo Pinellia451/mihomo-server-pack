@@ -1,9 +1,9 @@
 #!/bin/bash
 # One-click installer for mihomo proxy
-# Usage: bash install.sh [--port PORT]
+# Usage: bash install.sh [--port PORT] [--local]
 #
 # This script will:
-#   1. Clone the repo to ~/app/Proxy
+#   1. Clone the repo to ~/app/Proxy (or copy from local with --local)
 #   2. Copy config.example.yaml -> config.yaml (if not exists)
 #   3. Set permissions on mihomo-core
 #   4. Append shell aliases to ~/.zshrc (if not already present)
@@ -12,12 +12,16 @@
 #
 # Options:
 #   --port PORT    Set proxy port (default: 7899)
+#   --local        Install from current directory instead of git clone.
+#                  Copies the script's directory to ~/app/Proxy.
 
 set -e
 
 REPO_URL="https://github.com/Pinellia451/mihomo-server-pack.git"
 INSTALL_DIR="$HOME/app/Proxy"
 PROXY_PORT=7899
+LOCAL_MODE=false
+SOURCE_DIR=""
 
 # ---------- 解析参数 ----------
 while [[ $# -gt 0 ]]; do
@@ -30,9 +34,17 @@ while [[ $# -gt 0 ]]; do
             PROXY_PORT="$2"
             shift 2
             ;;
+        --local)
+            LOCAL_MODE=true
+            shift
+            ;;
         *)
             echo "[!] Unknown option: $1"
-            echo "Usage: bash install.sh [--port PORT]"
+            echo "Usage: bash install.sh [--port PORT] [--local]"
+            echo ""
+            echo "Options:"
+            echo "  --port PORT    Set proxy port (default: 7899)"
+            echo "  --local        Install from local directory instead of cloning"
             exit 1
             ;;
     esac
@@ -41,13 +53,6 @@ done
 echo "[*] Using proxy port: $PROXY_PORT"
 
 # ---------- 前置检查 ----------
-for cmd in git; do
-    if ! command -v "$cmd" &>/dev/null; then
-        echo "[!] '$cmd' is required but not installed."
-        exit 1
-    fi
-done
-
 # 检查系统和架构
 if [ "$(uname -s)" != "Linux" ]; then
     echo "[!] This installer is for Linux only. Detected: $(uname -s)"
@@ -59,18 +64,48 @@ if [ "$(uname -m)" != "x86_64" ]; then
     exit 1
 fi
 
-# ---------- clone ----------
-if [ -d "$INSTALL_DIR/.git" ]; then
-    echo "[*] Repo already exists at $INSTALL_DIR, pulling latest ..."
-    if ! git -C "$INSTALL_DIR" pull --ff-only; then
-        echo "[!] git pull failed (local changes conflict?). Aborting."
-        echo "    Resolve manually: cd $INSTALL_DIR && git status"
-        exit 1
+# ---------- 安装模式 ----------
+if [ "$LOCAL_MODE" = true ]; then
+    # --local: 从本地目录复制到 ~/app/Proxy
+    SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+    if [ "$SOURCE_DIR" = "$INSTALL_DIR" ]; then
+        echo "[*] Already at $INSTALL_DIR, skipping copy."
+    else
+        if [ -d "$INSTALL_DIR" ]; then
+            echo "[!] $INSTALL_DIR already exists."
+            read -rp "    Overwrite? [y/N] " confirm
+            if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                echo "[-] Aborted."
+                exit 1
+            fi
+            rm -rf "$INSTALL_DIR"
+        fi
+        echo "[*] Copying $SOURCE_DIR -> $INSTALL_DIR ..."
+        mkdir -p "$(dirname "$INSTALL_DIR")"
+        cp -a "$SOURCE_DIR" "$INSTALL_DIR"
+        echo "[+] Copied successfully"
     fi
 else
-    echo "[*] Cloning repo to $INSTALL_DIR ..."
-    mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone "$REPO_URL" "$INSTALL_DIR"
+    # 远程安装：需要 git
+    if ! command -v git &>/dev/null; then
+        echo "[!] 'git' is required but not installed."
+        exit 1
+    fi
+
+    # ---------- clone ----------
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        echo "[*] Repo already exists at $INSTALL_DIR, pulling latest ..."
+        if ! git -C "$INSTALL_DIR" pull --ff-only; then
+            echo "[!] git pull failed (local changes conflict?). Aborting."
+            echo "    Resolve manually: cd $INSTALL_DIR && git status"
+            exit 1
+        fi
+    else
+        echo "[*] Cloning repo to $INSTALL_DIR ..."
+        mkdir -p "$(dirname "$INSTALL_DIR")"
+        git clone "$REPO_URL" "$INSTALL_DIR"
+    fi
 fi
 
 cd "$INSTALL_DIR"
@@ -88,11 +123,7 @@ else
     echo "[*] config.yaml already exists, skipping."
 fi
 
-# 更新配置文件中的端口
-if [ -f config.yaml ]; then
-    sed -i "s/mixed-port: [0-9]*/mixed-port: $PROXY_PORT/" config.yaml
-    echo "[+] Updated config.yaml mixed-port to $PROXY_PORT"
-fi
+# 端口通过 run.sh --port 运行时指定，无需修改 config.yaml
 
 # ---------- 权限 ----------
 chmod +x mihomo-core
@@ -136,10 +167,11 @@ esac
 echo ""
 echo "=== Installation complete ==="
 echo ""
-echo "  Proxy port: $PROXY_PORT"
+echo "  Proxy port: $PROXY_PORT (config.yaml default, override with --port)"
 echo ""
 echo "  1. Edit config:   vim $INSTALL_DIR/config.yaml"
 echo "  2. Start proxy:   $INSTALL_DIR/run.sh start"
+echo "     Custom port:   $INSTALL_DIR/run.sh --port 1080 start"
 echo "  3. Set env vars:  source $INSTALL_DIR/run.sh proxy"
 echo "  4. WebUI:         http://127.0.0.1:9011/ui"
 echo ""

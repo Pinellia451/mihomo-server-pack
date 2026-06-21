@@ -1,9 +1,9 @@
 #!/bin/bash
 # mihomo proxy launcher for Linux
-# Usage: source run.sh    (用 source 以设置环境变量)
-#        ./run.sh          (仅启动代理，不设置环境变量)
+# Usage: ./run.sh [--port PORT] {start|stop|restart|proxy|unproxy|status}
+#        source run.sh proxy    (用 source 以设置环境变量)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$HOME/app/Proxy"
 MIHOMO="$SCRIPT_DIR/mihomo-core"
 CONFIG="$SCRIPT_DIR/config.yaml"
 PID_FILE="$SCRIPT_DIR/mihomo.pid"
@@ -15,6 +15,16 @@ if [ ! -f "$MIHOMO" ]; then
     echo "    Please re-clone or restore the binary."
     exit 1
 fi
+
+# ---------- 解析参数 ----------
+PORT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --port)
+            PORT="$2"; shift 2 ;;
+        *) break ;;
+    esac
+done
 
 # ---------- 停止已有进程 ----------
 stop_mihomo() {
@@ -33,8 +43,18 @@ stop_mihomo() {
 # ---------- 启动 ----------
 start_mihomo() {
     stop_mihomo
-    echo "[*] Starting mihomo ..."
-    nohup "$MIHOMO" -d "$SCRIPT_DIR" -f "$CONFIG" > "$LOG_FILE" 2>&1 &
+    local run_config="$CONFIG"
+
+    # 如果指定了 --port，生成临时配置覆盖 mixed-port
+    if [ -n "$PORT" ]; then
+        run_config="$SCRIPT_DIR/config.port.yaml"
+        sed "s/mixed-port: [0-9]*/mixed-port: $PORT/" "$CONFIG" > "$run_config"
+        echo "[*] Starting mihomo (port=$PORT) ..."
+    else
+        echo "[*] Starting mihomo ..."
+    fi
+
+    nohup "$MIHOMO" -d "$SCRIPT_DIR" -f "$run_config" > "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     local pid
     pid=$(cat "$PID_FILE")
@@ -54,7 +74,11 @@ start_mihomo() {
 
 # ---------- 设置环境变量 ----------
 get_proxy_port() {
-    # 从 config.yaml 读取 mixed-port，如果读取失败则使用默认值 7899
+    # 优先使用 --port 参数，其次从 config.yaml 读取
+    if [ -n "$PORT" ]; then
+        echo "$PORT"
+        return
+    fi
     local port
     port=$(grep -E "^mixed-port:" "$CONFIG" 2>/dev/null | awk '{print $2}')
     echo "${port:-7899}"
@@ -96,18 +120,25 @@ case "${1:-start}" in
     status)
         if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
             echo "[+] mihomo running (pid=$(cat "$PID_FILE"))"
+            echo "[+] Exit info:"
+            if _exit_info=$(curl -sL --max-time 30 -x "http://127.0.0.1:$(get_proxy_port)" "https://my.ippure.com/v1/info" 2>&1); then
+                echo "    $_exit_info"
+            else
+                echo "    [!] $_exit_info"
+            fi
         else
             echo "[-] mihomo not running"
         fi
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|proxy|unproxy|status}"
+        echo "Usage: $0 [--port PORT] {start|stop|restart|proxy|unproxy|status}"
         echo ""
-        echo "  start   - start mihomo in background"
-        echo "  stop    - stop mihomo"
-        echo "  restart - restart mihomo"
-        echo "  proxy   - set http_proxy/https_proxy env vars"
-        echo "  unproxy - unset proxy env vars"
-        echo "  status  - check if mihomo is running"
+        echo "  --port PORT  Override mixed-port (default: from config.yaml)"
+        echo "  start        start mihomo in background"
+        echo "  stop         stop mihomo"
+        echo "  restart      restart mihomo"
+        echo "  proxy        set http_proxy/https_proxy env vars"
+        echo "  unproxy      unset proxy env vars"
+        echo "  status       check if mihomo is running"
         ;;
 esac
