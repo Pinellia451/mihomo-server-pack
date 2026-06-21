@@ -250,6 +250,7 @@ rules:
   - DOMAIN-SUFFIX,ghfast.top,DIRECT
 
   # 其他常用直连
+  - DOMAIN-SUFFIX,cluster-fluster.com,DIRECT #happy
   - GEOSITE,private,DIRECT
   - GEOIP,private,DIRECT
   - GEOSITE,cn,DIRECT
