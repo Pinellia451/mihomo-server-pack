@@ -27,7 +27,8 @@ common_use: &common_use
   include-all: true
 
 ## 基本配置 #############################################################
-mixed-port: 7899
+mixed-port: 10898
+port: 10899
 mode: rule
 ipv6: true
 disable-keep-alive: false
